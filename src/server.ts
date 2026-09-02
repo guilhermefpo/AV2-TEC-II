@@ -9,7 +9,7 @@ import { fastifySwagger } from "@fastify/swagger";
 import { fastifyCors } from "@fastify/cors";
 import ScalarApiReference from "@scalar/fastify-api-reference";
 
-const app = fastify().withTypeProvider<ZodTypeProvider>();
+const app = fastify({ logger: true }).withTypeProvider<ZodTypeProvider>();
 
 app.setValidatorCompiler(validatorCompiler);
 app.setSerializerCompiler(serializerCompiler);

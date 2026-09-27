@@ -1,4 +1,4 @@
-import type VisitanteProjeto from "../interface/VisitanteProjeto.ts";
+import type VisitanteProjeto from "../interface/VisitanteProjeto.js";
 import type Avaliacao from "./Avaliacao.js";
 import type Competencia from "./Competencia.js";
 

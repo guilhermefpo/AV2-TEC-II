@@ -1,12 +1,18 @@
+import type { ElementoProjeto } from "../interface/ElementoProjeto.js";
+import type VisitanteProjeto from "../interface/VisitanteProjeto.js";
 import { Papel } from "../enum/Papel.js";
+import type Profissional from "./Profissional.js";
 
-export default class MembroEquipe {
+export default class MembroEquipe implements ElementoProjeto {
   constructor(
     public papel: Papel,
-    public confirmado: boolean,
-  ) {
-    this.papel = papel;
-    this.confirmado = confirmado;
+    public profissional: Profissional,
+    public confirmado: boolean = false,
+  ) {}
+
+  public aceitar(visitante: VisitanteProjeto): void {
+    visitante.visitarMembroEquipe(this);
+    this.profissional.aceitar(visitante);
   }
 
   getPapel(): Papel {
@@ -17,7 +23,7 @@ export default class MembroEquipe {
     return this.confirmado;
   }
 
-  setPapel(papel: Papel): void {
-    this.papel = papel;
+  confirmar(): void {
+    this.confirmado = true;
   }
 }

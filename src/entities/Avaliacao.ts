@@ -1,4 +1,4 @@
-import type VisitanteProjeto from "../interface/VisitanteProjeto.ts";
+import type VisitanteProjeto from "../interface/VisitanteProjeto.js";
 
 export default class Avaliacao {
   constructor(

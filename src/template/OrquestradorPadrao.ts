@@ -14,8 +14,8 @@ export default class OrquestradorPadrao extends OrquestradorEquipe {
   }
 
   protected posProcessarRecomendacoes(
-    recomendacao: Recomendacao,
-  ): Recomendacao {
-    return recomendacao;
+    recomendacoes: Recomendacao[],
+  ): Recomendacao[] {
+    return recomendacoes;
   }
 }

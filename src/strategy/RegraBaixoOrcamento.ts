@@ -1,11 +1,31 @@
-import type RecomendacaoStrategy from "./RecomendacaoStrategy.ts";
+import type RecomendacaoStrategy from "./RecomendacaoStrategy.js";
 import type Projeto from "../entities/Projeto.js";
 import type Profissional from "../entities/Profissional.js";
-import Recomendacao from "../entities/Recomendacao.js";
+import Recomendacao, {
+  type SugestaoProfissional,
+} from "../entities/Recomendacao.js";
+import { Papel } from "../enum/Papel.js";
 
 export default class RegraBaixoOrcamento implements RecomendacaoStrategy {
-  recomendar(projeto: Projeto, profissionais: Profissional[]): Recomendacao {
-    // Filtra profissionais com base na restrição orçamentária
-    return new Recomendacao(projeto.id, []);
+  recomendar(
+    projeto: Projeto,
+    papel: Papel,
+    profissionaisDisponiveis: Profissional[],
+  ): Recomendacao {
+    const sugestoes: SugestaoProfissional[] = profissionaisDisponiveis
+      .filter((p) => p.disponivel && p.precoMedio <= projeto.orcamento)
+      .map((profissional) => {
+        const mediaAvaliacoes =
+          profissional.avaliacoes.length > 0
+            ? profissional.avaliacoes.reduce((soma, a) => soma + a.nota, 0) /
+              profissional.avaliacoes.length
+            : 0;
+        const score =
+          1 / (profissional.precoMedio || 1) + mediaAvaliacoes * 0.01;
+        return { profissional, score };
+      })
+      .sort((a, b) => b.score - a.score);
+
+    return new Recomendacao(projeto.id, papel, sugestoes);
   }
 }

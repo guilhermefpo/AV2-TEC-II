@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: cinebridge-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: cinebridge
+      POSTGRES_PASSWORD: cinebridge
+      POSTGRES_DB: cinebridge
+    ports:
+      - "5432:5432"
+    volumes:
+      - cinebridge_pgdata:/var/lib/postgresql/data
+
+volumes:
+  cinebridge_pgdata:

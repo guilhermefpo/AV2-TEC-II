@@ -1,4 +1,4 @@
-import type VisitanteProjeto from "../interface/VisitanteProjeto.js";
+import type VisitanteProjeto from "./VisitanteProjeto.js";
 
 export interface ElementoProjeto {
   aceitar(visitante: VisitanteProjeto): void;

@@ -118,6 +118,8 @@ src/
   tests/          testes unitários e de integração
   utils/          gerador de ids sequenciais
   container.ts    composition root (injeção de dependência)
+  ---
+  raiz:
   app.ts          montagem do Fastify, usada pelo servidor e pelos testes
   server.ts       conecta ao banco e sobe o HTTP
 ```

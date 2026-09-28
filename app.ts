@@ -15,7 +15,7 @@ import relatorioRoutes from "./src/routes/relatorioRoutes.js";
 import equipeRoutes from "./src/routes/equipeRoutes.js";
 
 export function buildApp() {
-  const app = fastify({ logger: false }).withTypeProvider<ZodTypeProvider>();
+  const app = fastify({ logger: true }).withTypeProvider<ZodTypeProvider>();
 
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);

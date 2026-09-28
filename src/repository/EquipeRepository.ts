@@ -1,23 +1,37 @@
+import { AppDataSource } from "../database/Data-source.js";
 import Equipe from "../entities/Equipe.js";
+import MembroEquipe from "../entities/MembroEquipe.js";
+import type ProfissionalRepository from "./ProfissionalRepository.js";
 import { gerarId } from "../utils/GeradorID.js";
 
 export default class EquipeRepository {
-  private equipes: Map<string, Equipe> = new Map();
+  private repo = AppDataSource.getRepository(Equipe);
+
+  constructor(private profissionalRepository: ProfissionalRepository) {}
 
   public async salvar(equipe: Equipe): Promise<void> {
-    this.equipes.set(equipe.id, equipe);
+    // antes de salvar, achata os membros completos (com Profissional)
+    // para o formato simples que vai pro banco
+    equipe.membrosPersistidos = equipe.membros.map((m) => ({
+      papel: m.papel,
+      profissionalId: m.profissional.id,
+      confirmado: m.confirmado,
+    }));
+    await this.repo.save(equipe);
   }
 
   public async buscarPorId(id: string): Promise<Equipe | undefined> {
-    return this.equipes.get(id);
+    const encontrada = await this.repo.findOneBy({ id });
+    if (!encontrada) return undefined;
+    return this.hidratar(encontrada);
   }
 
   public async buscarPorProjetoId(
     projetoId: string,
   ): Promise<Equipe | undefined> {
-    return Array.from(this.equipes.values()).find(
-      (e) => e.projetoId === projetoId,
-    );
+    const encontrada = await this.repo.findOneBy({ projetoId });
+    if (!encontrada) return undefined;
+    return this.hidratar(encontrada);
   }
 
   public async obterOuCriar(projetoId: string): Promise<Equipe> {
@@ -33,5 +47,20 @@ export default class EquipeRepository {
     );
     await this.salvar(nova);
     return nova;
+  }
+
+  private async hidratar(equipe: Equipe): Promise<Equipe> {
+    const membros: MembroEquipe[] = [];
+    for (const persistido of equipe.membrosPersistidos) {
+      const profissional = await this.profissionalRepository.buscarPorId(
+        persistido.profissionalId,
+      );
+      if (!profissional) continue;
+      membros.push(
+        new MembroEquipe(persistido.papel, profissional, persistido.confirmado),
+      );
+    }
+    equipe.membros = membros;
+    return equipe;
   }
 }

@@ -1,7 +1,7 @@
 export default class Competencia {
   constructor(
-    public nome: string,
-    public nivel: number,
+    public nome: string = "",
+    public nivel: number = 0,
   ) {}
 
   toString(): string {

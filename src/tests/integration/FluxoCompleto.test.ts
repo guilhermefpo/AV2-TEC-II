@@ -1,13 +1,21 @@
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { buildApp } from "../../../app.js";
+import { AppDataSource } from "../../database/Data-source.js";
 import type { FastifyInstance } from "fastify";
 
 describe("Fluxo completo: cadastro → recomendação → convite → relatório", () => {
   let app: FastifyInstance;
 
   beforeAll(async () => {
+    if (!AppDataSource.isInitialized) {
+      await AppDataSource.initialize();
+    }
     app = buildApp();
     await app.ready();
+  });
+
+  afterAll(async () => {
+    await AppDataSource.destroy();
   });
 
   it("executa o ciclo de vida completo de um projeto", async () => {

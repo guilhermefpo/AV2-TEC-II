@@ -16,7 +16,10 @@ export default class RecomendacaoService {
     private projetoRepository: ProjetoRepository,
   ) {}
 
-  public async gerarRecomendacoes(projeto: Projeto): Promise<Recomendacao[]> {
+  public async gerarRecomendacoes(
+    projeto: Projeto,
+    orquestrador: OrquestradorEquipe = this.orquestrador,
+  ): Promise<Recomendacao[]> {
     let profissionaisDisponiveis: Profissional[];
 
     try {
@@ -25,7 +28,7 @@ export default class RecomendacaoService {
       profissionaisDisponiveis = [];
     }
 
-    const recomendacoes = this.orquestrador.processarRecomendacao(
+    const recomendacoes = orquestrador.processarRecomendacao(
       projeto,
       profissionaisDisponiveis,
     );

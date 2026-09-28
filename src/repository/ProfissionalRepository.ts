@@ -1,22 +1,23 @@
-import type Profissional from "../entities/Profissional.js";
+import { AppDataSource } from "../database/Data-source.js";
+import Profissional from "../entities/Profissional.js";
 
 export default class ProfissionalRepository {
-  private profissionais: Map<string, Profissional> = new Map();
+  private repo = AppDataSource.getRepository(Profissional);
 
   public async salvar(profissional: Profissional): Promise<void> {
-    this.profissionais.set(profissional.id, profissional);
+    await this.repo.save(profissional);
   }
 
   public async buscarPorId(id: string): Promise<Profissional | undefined> {
-    return this.profissionais.get(id);
+    const encontrado = await this.repo.findOneBy({ id });
+    return encontrado ?? undefined;
   }
 
   public async listarTodos(): Promise<Profissional[]> {
-    return Array.from(this.profissionais.values());
+    return this.repo.find();
   }
 
   public async listarDisponiveis(): Promise<Profissional[]> {
-    const todos = await this.listarTodos();
-    return todos.filter((p) => p.disponivel);
+    return this.repo.findBy({ disponivel: true });
   }
 }

@@ -2,7 +2,11 @@ import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
 import Projeto from "../entities/Projeto.js";
-import { recomendacaoService, projetoRepository } from "../Container.js";
+import {
+  recomendacaoService,
+  projetoRepository,
+  orquestradores,
+} from "../Container.js";
 import { Papel } from "../enum/Papel.js";
 
 const papelObrigatorioSchema = z.object({
@@ -22,6 +26,9 @@ const projetoSchema = z.object({
   tipoCaptacao: z.string(),
   localizacao: z.string(),
   papeisObrigatorios: z.array(papelObrigatorioSchema),
+  estrategia: z
+    .enum(["cosseno", "colaborativa", "baixo_orcamento"])
+    .default("cosseno"),
 });
 
 const recomendacaoResponseSchema = z.array(
@@ -64,8 +71,10 @@ export default async function projetoRoutes(
 
       await projetoRepository.salvar(projeto);
 
-      const recomendacoes =
-        await recomendacaoService.gerarRecomendacoes(projeto);
+      const recomendacoes = await recomendacaoService.gerarRecomendacoes(
+        projeto,
+        orquestradores[dados.estrategia],
+      );
 
       return reply.send(
         recomendacoes.map((r) => ({

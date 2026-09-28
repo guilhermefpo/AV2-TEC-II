@@ -8,12 +8,14 @@ import NotificacaoInterna from "./observer/NotificacaoInterna.js";
 import AuditoriaOperacoes from "./observer/AuditoriaOperadores.js";
 import OrquestradorPadrao from "./template/OrquestradorPadrao.js";
 import EstrategiaCosseno from "./strategy/EstrategiaCosseno.js";
+import FiltragemColaborativa from "./strategy/FiltragemColaborativa.js";
+import RegraBaixoOrcamento from "./strategy/RegraBaixoOrcamento.js";
 import RecomendacaoService from "./service/RecomendacaoService.js";
 import ConviteService from "./service/ConviteService.js";
 import RelatorioService from "./service/RelatorioService.js";
 
 export const profissionalRepository = new ProfissionalRepository();
-export const equipeRepository = new EquipeRepository();
+export const equipeRepository = new EquipeRepository(profissionalRepository);
 export const conviteRepository = new ConviteRepository();
 export const projetoRepository = new ProjetoRepository();
 
@@ -22,9 +24,14 @@ emissor.inscrever(new NotificacaoEmail());
 emissor.inscrever(new NotificacaoInterna());
 emissor.inscrever(new AuditoriaOperacoes());
 
-export const orquestrador = new OrquestradorPadrao(new EstrategiaCosseno());
+export const orquestradores = {
+  cosseno: new OrquestradorPadrao(new EstrategiaCosseno()),
+  colaborativa: new OrquestradorPadrao(new FiltragemColaborativa()),
+  baixo_orcamento: new OrquestradorPadrao(new RegraBaixoOrcamento()),
+};
 
-// Serviços de aplicação, recebendo as dependências acima
+export const orquestrador = orquestradores.cosseno;
+
 export const recomendacaoService = new RecomendacaoService(
   profissionalRepository,
   orquestrador,

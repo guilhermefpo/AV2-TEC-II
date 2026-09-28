@@ -1,29 +1,27 @@
+import { AppDataSource } from "../database/Data-source.js";
 import Convite from "../entities/Convite.js";
+import type { Papel } from "../enum/Papel.js";
 
 export default class ConviteRepository {
-  private convites: Map<string, Convite> = new Map();
+  private repo = AppDataSource.getRepository(Convite);
 
   public async salvar(convite: Convite): Promise<void> {
-    this.convites.set(convite.id, convite);
+    await this.repo.save(convite);
   }
 
   public async buscarPorId(id: string): Promise<Convite | undefined> {
-    return this.convites.get(id);
+    const encontrado = await this.repo.findOneBy({ id });
+    return encontrado ?? undefined;
   }
 
   public async listarPorProjeto(projetoId: string): Promise<Convite[]> {
-    return Array.from(this.convites.values()).filter(
-      (c) => c.projetoId === projetoId,
-    );
+    return this.repo.findBy({ projetoId });
   }
 
   public async listarPendentesPorProjetoEPapel(
     projetoId: string,
-    papel: string,
+    papel: Papel,
   ): Promise<Convite[]> {
-    const doProjeto = await this.listarPorProjeto(projetoId);
-    return doProjeto.filter(
-      (c) => c.papel === papel && c.status === "pendente",
-    );
+    return this.repo.findBy({ projetoId, papel, status: "pendente" });
   }
 }

@@ -1,267 +1,176 @@
-# CineBridge — Microsserviço de Recomendação e Orquestração de Equipes
+# CineBridge
 
-Atividade prática (ATVI) — Engenharia de Software
-Professor: Dr. Eng. Gerson Penha
+API para recomendar e formar equipes audiovisuais. Node.js, TypeScript estrito, Fastify, PostgreSQL e TypeORM. Não há interface gráfica; a documentação interativa da API fica em `/docs`.
 
-## Visão geral
+Atividade prática (ATVI) — Engenharia de Software. Professor: Dr. Eng. Gerson Penha.
 
-O CineBridge é um microsserviço que recebe as especificações de um projeto audiovisual (gênero, orçamento, prazo, papéis técnicos necessários) e recomenda profissionais para compor a equipe, respeitando restrições orçamentárias e de prazo. O sistema também gerencia o ciclo de convites (aceitar/recusar), substituição isolada de membros já confirmados, reavaliação completa da equipe, e permite consultar um relatório de consistência e compatibilidade da equipe formada.
+## Executar
 
-O foco desta entrega é a aplicação consciente de **quatro padrões de projeto** — Strategy, Template Method, Observer e Visitor — dentro de uma arquitetura em camadas com injeção de dependência explícita.
+Com o Docker Desktop aberto, execute no PowerShell, na pasta do projeto:
 
-## Stack técnica
-
-| Camada                    | Tecnologia                                                                                    |
-| ------------------------- | --------------------------------------------------------------------------------------------- |
-| Runtime                   | Node.js (LTS)                                                                                 |
-| Linguagem                 | TypeScript (modo estrito)                                                                     |
-| Framework HTTP            | Fastify                                                                                       |
-| Validação                 | Zod (via `fastify-type-provider-zod`)                                                         |
-| Documentação da API       | Swagger/OpenAPI + Scalar (`/docs`)                                                            |
-| Testes                    | Vitest + cobertura via `@vitest/coverage-v8`                                                  |
-| Persistência (fase atual) | Repositórios em memória (`Map`), preparados para substituição futura por PostgreSQL/ORM       |
-| Comunicação interna       | Padrão Observer próprio (substituível por RabbitMQ no futuro sem alterar a lógica de negócio) |
-
-## Como executar
-
-```bash
+```powershell
 npm install
+docker compose up -d
 npm run dev
 ```
 
-Servidor: `http://localhost:3333`
-Documentação interativa (Scalar): `http://localhost:3333/docs`
+O PostgreSQL 16 sobe em `localhost:5432` (usuário, senha e banco `cinebridge`, definidos em `docker-compose.yml` e `src/database/data-source.ts`). As tabelas `profissionais`, `projetos`, `equipes` e `convites` são criadas automaticamente na primeira conexão (`synchronize: true`), então não há migração nem seed. O banco começa vazio: cadastre profissionais antes de pedir recomendações.
 
-> ⚠️ O servidor mantém tudo em memória. Reiniciar o servidor (`Ctrl+C` + `npm run dev`) apaga todos os dados cadastrados e zera os contadores de id (`P1`, `C1`, `E1`...). Isso é esperado nesta fase do projeto.
+A API fica em `http://localhost:3333` e a documentação em `http://localhost:3333/docs`. Os dados persistem entre reinícios do servidor. Para apagar tudo e recomeçar: `docker compose down -v`.
 
-## Como rodar os testes automatizados
+No Ubuntu, os comandos são os mesmos (`npm install`, `docker compose up -d`, `npm run dev`). É necessário Node.js LTS e Docker com Compose.
+
+## Testes
 
 ```bash
-npm run test            # roda a suíte uma vez
-npm run test:watch      # roda em modo observador (reexecuta ao salvar)
-npm run test:coverage   # roda com relatório de cobertura
+docker compose up -d
+npm test
+npm run test:coverage
 ```
 
-**Cobertura atual: 81.15%** (requisito do enunciado: superior a 80%) ✅
+- `npm test`: roda toda a suíte. Os testes de integração usam o PostgreSQL real, então o Docker precisa estar de pé.
+- `npm run test:watch`: reexecuta os testes a cada alteração.
+- `npm run test:coverage`: relatório de cobertura no terminal e em `coverage/index.html`.
 
-A suíte contém 5 arquivos de teste, 10 casos:
+Última medição: **20 testes em 7 arquivos, 89.41% de cobertura** (meta do enunciado: acima de 80%).
 
-- `tests/strategy/EstrategiaCosseno.test.ts` — Strategy
-- `tests/template/OrquestradorPadrao.test.ts` — Template Method
-- `tests/observer/EmissorRecomendacao.test.ts` — Observer
-- `tests/visitor/ValidatorConsistencia.test.ts` — Visitor
-- `tests/integration/FluxoCompleto.test.ts` — teste de integração completo via `fastify.inject()`, exercitando rotas, serviços e repositórios de ponta a ponta
+| Arquivo                                             | Tipo       | Demonstra                                                               |
+| --------------------------------------------------- | ---------- | ----------------------------------------------------------------------- |
+| `tests/strategy/EstrategiaCosseno.test.ts`          | Unitário   | Similaridade de cosseno e exclusão de indisponíveis                     |
+| `tests/strategy/TrocaEstrategia.test.ts`            | Unitário   | A troca de estratégia altera o ranking para os mesmos dados             |
+| `tests/template/OrquestradorPadrao.test.ts`         | Unitário   | Fluxo fixo: validação orçamentária e uma recomendação por papel         |
+| `tests/observer/EmissorRecomendacao.test.ts`        | Unitário   | Observadores notificados de forma independente e inscrição/cancelamento |
+| `tests/visitor/ValidatorConsistencia.test.ts`       | Unitário   | Validação de papéis e orçamento sem alterar as classes de domínio       |
+| `tests/integration/FluxoCompleto.test.ts`           | Integração | Cadastro → recomendação → convite → aceite → relatório                  |
+| `tests/integration/SubstituicaoReavaliacao.test.ts` | Integração | Substituição por papel, reavaliação e erros 404                         |
 
-## Estrutura de pastas
+Os testes de integração gravam no mesmo banco usado no desenvolvimento e não limpam os registros ao terminar.
+
+## API
+
+| Método | Rota                                     | Ação                                                                 |
+| ------ | ---------------------------------------- | -------------------------------------------------------------------- |
+| POST   | `/profissionais`                         | Cadastra profissional (id gerado: `P1`, `P2`...)                     |
+| GET    | `/profissionais`                         | Lista profissionais                                                  |
+| POST   | `/projetos/recomendacao`                 | Salva o projeto e recomenda profissionais para cada papel            |
+| POST   | `/projetos/:projetoId/convites`          | Convida um profissional para um papel (id `C1`, `C2`...)             |
+| PATCH  | `/convites/:conviteId`                   | Registra aceite ou recusa do profissional                            |
+| GET    | `/projetos/:projetoId/relatorio`         | Relatório, validação de consistência e compatibilidade               |
+| POST   | `/projetos/:projetoId/equipe/substituir` | Nova rodada de recomendação só para um papel                         |
+| POST   | `/projetos/:projetoId/reavaliar`         | Atualiza orçamento/prazo e refaz as recomendações de todos os papéis |
+
+Exemplo completo no PowerShell (com o servidor rodando):
+
+```powershell
+$prof = Invoke-RestMethod -Method Post -Uri http://localhost:3333/profissionais -ContentType 'application/json' -Body '{"nome":"Ana","precoMedio":500}'
+$prof.id
+
+$projeto = @{
+  id = 'projeto-1'
+  genero = 'documentario'
+  duracao = 90
+  orcamento = 50000
+  prazo = '2026-12-01'
+  tipoCaptacao = 'documentario'
+  localizacao = 'Sao Paulo'
+  estrategia = 'cosseno'
+  papeisObrigatorios = @(@{ papel = 'DIRETOR'; peso = 5; competenciasDesejadas = @() })
+} | ConvertTo-Json -Depth 10
+Invoke-RestMethod -Method Post -Uri http://localhost:3333/projetos/recomendacao -ContentType 'application/json' -Body $projeto
+
+$convite = Invoke-RestMethod -Method Post -Uri http://localhost:3333/projetos/projeto-1/convites -ContentType 'application/json' -Body ('{"profissionalId":"' + $prof.id + '","papel":"DIRETOR"}')
+Invoke-RestMethod -Method Patch -Uri "http://localhost:3333/convites/$($convite.id)" -ContentType 'application/json' -Body '{"resposta":"aceito"}'
+Invoke-RestMethod http://localhost:3333/projetos/projeto-1/relatorio
+```
+
+Outros corpos de requisição:
+
+```json
+{ "estrategia": "colaborativa" }
+{ "estrategia": "baixo_orcamento" }
+{ "resposta": "recusado" }
+{ "papel": "DIRETOR" }
+{ "novoOrcamento": 80000 }
+```
+
+- `estrategia` vai no corpo de `POST /projetos/recomendacao` e aceita `cosseno` (padrão), `colaborativa` ou `baixo_orcamento`.
+- `resposta` vai em `PATCH /convites/:conviteId` e aceita `aceito` ou `recusado`.
+- `papel` vai em `POST /projetos/:projetoId/equipe/substituir`. Os papéis válidos são `DIRETOR`, `DIRETOR_FOTOGRAFIA`, `SONOPLASTA`, `EDITOR`, `ROTEIRISTA` e `EFEITOS_VISUAIS`.
+- `novoOrcamento` e `novoPrazo` (ambos opcionais) vão em `POST /projetos/:projetoId/reavaliar`.
+
+Entradas que não respeitam o schema retornam 400 (validação Zod). Projeto ou papel inexistente nas rotas de relatório, substituição e reavaliação retorna 404. Nas rotas de convite, um profissional ou convite inexistente ainda resulta em erro 500 sem mensagem tratada (ver limitações).
+
+## Organização e padrões
 
 ```
 src/
-├── entities/       # Entidades de domínio (Projeto, Profissional, Equipe, Convite, etc.)
-├── enum/           # Papel.ts — papéis técnicos do projeto
-├── interface/      # Contratos do Visitor (ElementoProjeto, VisitanteProjeto)
-├── gerador/        # Visitantes concretos (ValidadorConsistencia, GeradorRelatorio, CalculadorCompatibilidade)
-├── strategy/       # Padrão Strategy — algoritmos de recomendação
-├── template/       # Padrão Template Method — orquestrador de composição de equipe
-├── observer/       # Padrão Observer — eventos e notificações
-├── repository/     # Repositórios em memória (Profissional, Projeto, Equipe, Convite)
-├── service/        # Serviços de aplicação que conectam os padrões
-├── routes/         # Rotas HTTP (Fastify)
-├── tests/          # Testes unitários e de integração (Vitest)
-├── utils/          # Utilitários (gerador de id sequencial para testes manuais)
-├── container.ts    # Composition root — instâncias únicas de repositórios/serviços (DI manual)
-├── app.ts          # Construção do app Fastify (usado tanto pelo server quanto pelos testes)
-└── server.ts       # Bootstrap do servidor HTTP
+  entities/       Projeto, Profissional, Equipe, MembroEquipe, Convite, Avaliacao, Competencia, Recomendacao
+  enum/           Papel
+  interface/      contratos do Visitor
+  gerador/        visitantes concretos
+  strategy/       algoritmos de recomendação
+  template/       orquestrador de composição de equipe
+  observer/       eventos e notificadores
+  repository/     acesso ao banco (TypeORM)
+  service/        casos de uso
+  routes/         rotas Fastify com validação Zod
+  database/       DataSource do TypeORM
+  tests/          testes unitários e de integração
+  utils/          gerador de ids sequenciais
+  container.ts    composition root (injeção de dependência)
+  app.ts          montagem do Fastify, usada pelo servidor e pelos testes
+  server.ts       conecta ao banco e sobe o HTTP
 ```
 
-## Padrões de projeto implementados
+| Padrão          | Implementação                                                                         | Demonstração                                                                                                      |
+| --------------- | ------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Strategy        | `EstrategiaCosseno`, `FiltragemColaborativa`, `RegraBaixoOrcamento`                   | A troca de estratégia altera o ranking (`TrocaEstrategia.test.ts`)                                                |
+| Template Method | `OrquestradorEquipe` (abstrato) e `OrquestradorPadrao`                                | Normalizar → validar orçamento → recomendar por papel → pós-processar; o método principal não é sobrescrito       |
+| Observer        | `EmissorRecomendacao`, `NotificacaoEmail`, `NotificacaoInterna`, `AuditoriaOperacoes` | Cada observador reage sozinho ao mesmo evento                                                                     |
+| Visitor         | `ValidadorConsistencia`, `CalculadorCompatibilidade`, `GeradorRelatorio`              | Operações diferentes sobre `Projeto → Equipe → MembroEquipe → Profissional → Avaliacao` sem alterar essas classes |
 
-### 1. Strategy — algoritmos de recomendação
+As dependências são fornecidas por construtor e montadas uma única vez em `container.ts`. O mapa `orquestradores` do container guarda um orquestrador para cada estratégia, e a rota escolhe o orquestrador conforme o campo `estrategia` da requisição.
 
-**Local:** `src/strategy/`
+Profissionais, projetos, equipes e convites têm tabela própria no PostgreSQL. Competências, avaliações, papéis obrigatórios e os membros da equipe são gravados como JSON dentro dessas tabelas. Ao carregar uma equipe, o repositório reconstrói cada membro buscando o profissional completo pelo id.
 
-- `EstrategiaCosseno` — similaridade de cosseno entre competências desejadas e competências do profissional.
-- `FiltragemColaborativa` — ranqueia por média histórica de avaliações.
-- `RegraBaixoOrcamento` — prioriza preço baixo dentro do orçamento do projeto.
+## Regras adotadas
 
-### 2. Template Method — orquestração da composição de equipe
+- Os papéis do projeto vêm do enum `Papel`. Cada papel obrigatório tem um peso e uma lista de competências desejadas com nível.
+- A recomendação é feita por papel: para cada papel obrigatório a estratégia ranqueia os profissionais disponíveis. O resultado é uma lista de sugestões com pontuação para cada papel.
+- **Cosseno:** compara o vetor de competências desejadas para o papel com o vetor do profissional. Competências que o profissional não tem contam como zero.
+- **Colaborativa:** pontua pela média das avaliações históricas do profissional.
+- **Baixo orçamento:** descarta quem cobra mais que o orçamento total e prioriza a menor fatia do orçamento, usando a média de avaliações como desempate.
+- Profissionais indisponíveis nunca são recomendados.
+- Um orçamento menor ou igual a zero é rejeitado pelo orquestrador.
+- Ao aceitar um convite, o profissional vira membro confirmado da equipe do projeto. A equipe é criada no primeiro aceite (id `E1`, `E2`...). Se já existir membro no mesmo papel, ele é substituído e a equipe passa para `em_revisao`.
+- O relatório roda três visitantes sobre o projeto e a equipe. O validador verifica se todos os papéis obrigatórios estão preenchidos, se o custo acumulado cabe no orçamento e se nenhum membro está indisponível. A compatibilidade soma, para cada membro, a média das avaliações multiplicada pelo peso do papel.
+- A substituição de um papel gera uma nova recomendação apenas para ele, sem alterar os demais. A reavaliação atualiza orçamento e prazo do projeto salvo e recalcula todos os papéis.
+- Tolerância a falhas: se a leitura de profissionais falhar, o serviço segue com lista vazia em vez de derrubar a requisição.
 
-**Local:** `src/template/`
-`OrquestradorEquipe` define o fluxo fixo (`normalizarEntrada → validarRestricoesOrcamentarias → recomendar por papel → posProcessarRecomendacoes`). `OrquestradorPadrao` implementa as etapas variáveis. Também expõe `recomendarUnico`, usado na substituição isolada de um membro.
+## Notificações e eventos
 
-### 3. Observer — notificações e eventos assíncronos
+Os eventos são `recomendacao_gerada`, `convite_aceito` e `convite_recusado`. Um único emissor notifica os três observadores, e o campo `tipo` do evento indica o que aconteceu. As reações são síncronas e em memória: os observadores escrevem uma linha no console do servidor. Não há envio real de e-mail, nem tabela de auditoria ou de notificações.
 
-**Local:** `src/observer/`
-`EmissorRecomendacao` (subject) notifica `NotificacaoEmail`, `NotificacaoInterna` e `AuditoriaOperacoes` sempre que uma recomendação é gerada ou um convite é aceito/recusado.
+Os logs HTTP estruturados vêm do Pino, já embutido no Fastify.
 
-### 4. Visitor — operações transversais sobre a árvore de dados
+## Requisitos não funcionais
 
-**Local:** `src/interface/` (contratos) e `src/gerador/` (visitantes concretos)
-Percurso cascateado `Projeto → Equipe → MembroEquipe → Profissional → Avaliacao`. Visitantes: `ValidadorConsistencia`, `GeradorRelatorio`, `CalculadorCompatibilidade`.
+| Requisito                                            | Situação                                                     |
+| ---------------------------------------------------- | ------------------------------------------------------------ |
+| Algoritmo parametrizável                             | Atendido: estratégia escolhida por requisição                |
+| Logs estruturados                                    | Parcial: Pino para HTTP e console para os eventos de negócio |
+| Tolerância a falhas do repositório de profissionais  | Parcial: lista vazia como fallback                           |
+| Cobertura de testes acima de 80%                     | Atendido: 89.41%                                             |
+| Latência abaixo de 2 s e 100 requisições simultâneas | Não medido                                                   |
+| Windows 10+ e Ubuntu 24.04+                          | Desenvolvido e testado no Windows; Ubuntu não validado       |
 
-## Endpoints disponíveis
+## Limitações
 
-| Método  | Rota                                     | Descrição                                                            |
-| ------- | ---------------------------------------- | -------------------------------------------------------------------- |
-| `POST`  | `/profissionais`                         | Cadastra um profissional (id gerado automaticamente)                 |
-| `GET`   | `/profissionais`                         | Lista profissionais cadastrados                                      |
-| `POST`  | `/projetos/recomendacao`                 | Recebe um projeto, salva-o e gera recomendações para todos os papéis |
-| `POST`  | `/projetos/:projetoId/convites`          | Cria um convite para um profissional em um papel                     |
-| `PATCH` | `/convites/:conviteId`                   | Profissional aceita ou recusa o convite                              |
-| `GET`   | `/projetos/:projetoId/relatorio`         | Relatório de consistência e compatibilidade da equipe (Visitor)      |
-| `POST`  | `/projetos/:projetoId/equipe/substituir` | Gera nova recomendação isolada para um papel específico              |
-| `POST`  | `/projetos/:projetoId/reavaliar`         | Reavalia a equipe inteira após mudança de orçamento/prazo            |
-
-## Como testar manualmente (passo a passo, na ordem)
-
-Abra `http://localhost:3333/docs` (Scalar). Cada endpoint tem um formulário com campos de **Path Parameters** (quando a rota tem `:algumaCoisa` na URL) separados do campo de **Body** (o JSON do corpo). Preencha os dois quando existirem, e clique no botão de enviar/executar a requisição (não confundir com o exemplo de `curl`, que é só ilustrativo).
-
-Como o servidor guarda tudo em memória, sempre que reiniciar (`npm run dev`), refaça a sequência abaixo desde o passo 1.
-
-### Passo 1 — Cadastrar um profissional
-
-`POST /profissionais`
-
-```json
-{
-  "nome": "Guilherme Fernando",
-  "competencias": [],
-  "precoMedio": 0,
-  "disponivel": true
-}
-```
-
-✅ Esperado: status `201`, resposta com `"id": "P1"`.
-
-### Passo 2 — Gerar recomendação para um projeto
-
-`POST /projetos/recomendacao`
-
-```json
-{
-  "id": "projeto-1",
-  "genero": "documentário",
-  "duracao": 90,
-  "orcamento": 50000,
-  "prazo": "2026-12-01",
-  "tipoCaptacao": "documentário",
-  "localizacao": "São Paulo",
-  "papeisObrigatorios": [
-    {
-      "papel": "DIRETOR",
-      "peso": 5,
-      "competenciasDesejadas": []
-    }
-  ]
-}
-```
-
-✅ Esperado: status `200`, lista com uma recomendação para o papel `DIRETOR`, contendo `"profissionalId": "P1"`.
-📋 Confira também o terminal do servidor: devem aparecer as três linhas de notificação do Observer (`[Email]`, `[Mensagem Interna]`, `[Auditoria LOG]`).
-
-### Passo 3 — Criar um convite
-
-`POST /projetos/{projetoId}/convites`
-
-- Path parameter `projetoId`: `projeto-1`
-- Body:
-
-```json
-{
-  "profissionalId": "P1",
-  "papel": "DIRETOR"
-}
-```
-
-✅ Esperado: status `201`, resposta com `"id": "C1"`, `"status": "pendente"`.
-
-### Passo 4 — Aceitar o convite
-
-`PATCH /convites/{conviteId}`
-
-- Path parameter `conviteId`: `C1`
-- Body:
-
-```json
-{
-  "resposta": "aceito"
-}
-```
-
-✅ Esperado: status `200`, resposta com `"status": "aceito"`. Isso confirma o membro na equipe internamente.
-
-### Passo 5 — Consultar o relatório da equipe (Visitor)
-
-`GET /projetos/{projetoId}/relatorio`
-
-- Path parameter `projetoId`: `projeto-1`
-- Sem body
-
-✅ Esperado: status `200`, resposta como:
-
-```json
-{
-  "relatorio": "PROJETO: projeto-1 - Orçamento: R$50000\nEQUIPE: E1 - Status: em_formacao\n  PAPEL: DIRETOR - Confirmado: sim\n    PROFISSIONAL: Guilherme Fernando - R$0",
-  "valido": true,
-  "erros": [],
-  "pontuacaoCompatibilidade": 0
-}
-```
-
-### Passo 6 — Substituir um membro (nova rodada isolada por papel)
-
-`POST /projetos/{projetoId}/equipe/substituir`
-
-- Path parameter `projetoId`: `projeto-1`
-- Body:
-
-```json
-{
-  "papel": "DIRETOR"
-}
-```
-
-✅ Esperado: status `200`, nova recomendação **apenas para o papel DIRETOR**, sem afetar os demais papéis do projeto (demonstra a garantia do Template Method: fluxo fixo, etapas reaproveitadas).
-
-### Passo 7 — Reavaliação completa da equipe
-
-`POST /projetos/{projetoId}/reavaliar`
-
-- Path parameter `projetoId`: `projeto-1`
-- Body:
-
-```json
-{
-  "novoOrcamento": 80000
-}
-```
-
-✅ Esperado: status `200`, lista de recomendações para **todos** os papéis obrigatórios do projeto, refletindo o novo orçamento salvo internamente.
-
-### Casos de erro (opcional, mas recomendado para avaliação)
-
-- `GET /projetos/projeto-inexistente/relatorio` → deve retornar `404`.
-- `POST /projetos/recomendacao` com `orcamento: 0` → o Template Method deve lançar erro de validação orçamentária (visível como erro 500 ou mensagem tratada, dependendo do handler global de erros do Fastify).
-
-## Requisitos não funcionais — status atual
-
-| Requisito do enunciado                              | Status                                                                                          |
-| --------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| Resposta em menos de 2s por recomendação            | Não medido formalmente; endpoint é síncrono e leve (repositório em memória)                     |
-| Suporte a 100 requisições simultâneas               | Não testado sob carga                                                                           |
-| Algoritmo de recomendação parametrizável            | ✅ Atendido via Strategy                                                                        |
-| Logs estruturados para auditoria                    | ✅ Fastify + Pino configurado; Observer também registra eventos de negócio                      |
-| Tolerância a falhas do repositório de profissionais | ✅ Parcial — `RecomendacaoService` captura falha na consulta e segue com lista vazia (fallback) |
-| Cobertura de testes superior a 80%                  | ✅ Atendido — 81.15% medido via `npm run test:coverage`                                         |
-
-## Pendências conhecidas (próximos passos além desta entrega)
-
-- **Persistência definitiva**: repositórios atuais são em memória; migração para PostgreSQL (via TypeORM/Prisma, conforme especificado no enunciado) ainda não realizada.
-- **Fila de mensagens**: comunicação interna via Observer em memória; substituição futura por RabbitMQ não implementada (arquitetura já isola essa dependência via interface).
-- **Perfil completo do profissional**: hoje `Profissional` só tem `disponivel: boolean` e `precoMedio: number`; faixa de preço, janela de disponibilidade temporal e localização geográfica ainda não modeladas, o que limita filtros de prazo/localização mencionados no enunciado.
-- **Teste de carga/performance**: latência (<2s) e concorrência (100 requisições simultâneas) não foram medidas formalmente.
-- **Cobertura de 100%**: alguns arquivos permanecem sem teste direto por não serem exercitados pelo fluxo de integração atual (ex: `FiltragemColaborativa`, `RegraBaixoOrcamento` — estratégias alternativas não usadas no fluxo padrão; `Avaliacao.ts` — entidade não populada nos cenários testados). Não impede o cumprimento da meta de 80%, mas fica registrado como próximo incremento possível.
-
-## Compatibilidade de plataforma
-
-Desenvolvido e testado no Windows. Compatibilidade com Linux Ubuntu 24.04+ e derivados ainda não validada formalmente — como o projeto usa apenas Node.js/TypeScript multiplataforma, não são esperados bloqueios, mas recomenda-se teste explícito antes da entrega final.
-DATABASE_URL="postgresql://cinebridge:cinebridge@localhost:5432/cinebridge?schema=public"
+- Recusar um convite emite o evento `convite_recusado`, mas não dispara nova recomendação automática. O produtor usa o endpoint de substituição.
+- O endpoint de substituição só devolve novas sugestões para o papel. Quem escolhe e convida o substituto é o produtor, pelas rotas de convite.
+- Os ids `P1`, `C1` e `E1` vêm de contadores em memória que reiniciam a cada execução do servidor. Depois de reiniciar, um novo cadastro pode reutilizar um id já gravado no banco e sobrescrevê-lo. Para uma demonstração limpa, reinicie também o banco com `docker compose down -v`.
+- Erros nas rotas de convite (profissional ou convite inexistente) resultam em resposta 500 genérica.
+- Não há `RabbitMQ`, autenticação, migrações, seed, teste de carga nem envio real de e-mail.
+- O modelo de profissional tem `precoMedio` e `disponivel`. Faixa de preço, janela de disponibilidade e localização não são modeladas, então a estratégia de baixo orçamento e o filtro de disponibilidade são simples.
+- As credenciais do banco estão no código, para uso local de desenvolvimento.
+- Os testes de integração acumulam registros no banco.

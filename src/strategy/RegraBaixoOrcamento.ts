@@ -20,8 +20,9 @@ export default class RegraBaixoOrcamento implements RecomendacaoStrategy {
             ? profissional.avaliacoes.reduce((soma, a) => soma + a.nota, 0) /
               profissional.avaliacoes.length
             : 0;
-        const score =
-          1 / (profissional.precoMedio || 1) + mediaAvaliacoes * 0.01;
+
+        const fatiaDoOrcamento = profissional.precoMedio / projeto.orcamento;
+        const score = 1 - fatiaDoOrcamento + mediaAvaliacoes * 0.01;
         return { profissional, score };
       })
       .sort((a, b) => b.score - a.score);

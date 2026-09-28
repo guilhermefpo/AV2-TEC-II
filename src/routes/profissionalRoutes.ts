@@ -26,10 +26,6 @@ const profissionalResponseSchema = z.object({
   disponivel: z.boolean(),
 });
 
-const erroResponseSchema = z.object({
-  message: z.string(),
-});
-
 export default async function profissionalRoutes(
   app: FastifyInstance<any, any, any, any, ZodTypeProvider>,
 ) {
@@ -38,10 +34,7 @@ export default async function profissionalRoutes(
     {
       schema: {
         body: criarProfissionalSchema,
-        response: {
-          201: profissionalResponseSchema,
-          409: erroResponseSchema,
-        },
+        response: { 201: profissionalResponseSchema },
       },
     },
     async (request, reply) => {
@@ -51,14 +44,14 @@ export default async function profissionalRoutes(
         (c) => new Competencia(c.nome, c.nivel),
       );
 
-      const profissional = new Profissional(
-        gerarId("P"), // ← id gerado automaticamente
-        dados.nome,
+      const profissional = Profissional.criar({
+        id: gerarId("P"),
+        nome: dados.nome,
         competencias,
-        [],
-        dados.precoMedio,
-        dados.disponivel,
-      );
+        avaliacoes: [],
+        precoMedio: dados.precoMedio,
+        disponivel: dados.disponivel,
+      });
 
       await profissionalRepository.salvar(profissional);
 

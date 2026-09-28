@@ -23,23 +23,20 @@ describe("EstrategiaCosseno", () => {
         },
       ],
     );
-    const profissional = new Profissional(
-      "prof1",
-      "Ana",
-      [new Competencia("roteiro", 5)],
-      [],
-      1000,
-      true,
-    );
+    const profissional = Profissional.criar({
+      id: "prof1",
+      nome: "Ana",
+      competencias: [new Competencia("roteiro", 5)],
+      precoMedio: 1000,
+      disponivel: true,
+    });
 
     const estrategia = new EstrategiaCosseno();
     const recomendacao = estrategia.recomendar(projeto, Papel.DIRETOR, [
       profissional,
     ]);
 
-    const primeira = recomendacao.sugestoes[0];
-    expect(primeira).toBeDefined();
-    expect(primeira?.score).toBeCloseTo(1, 5);
+    expect(recomendacao.sugestoes[0]!.score).toBeCloseTo(1, 5);
   });
 
   it("não recomenda profissional indisponível", () => {
@@ -53,7 +50,12 @@ describe("EstrategiaCosseno", () => {
       "SP",
       [{ papel: Papel.DIRETOR, peso: 5, competenciasDesejadas: [] }],
     );
-    const indisponivel = new Profissional("prof1", "Ana", [], [], 1000, false);
+    const indisponivel = Profissional.criar({
+      id: "prof1",
+      nome: "Ana",
+      precoMedio: 1000,
+      disponivel: false,
+    });
 
     const estrategia = new EstrategiaCosseno();
     const recomendacao = estrategia.recomendar(projeto, Papel.DIRETOR, [

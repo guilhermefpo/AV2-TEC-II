@@ -2,10 +2,10 @@ import type VisitanteProjeto from "../interface/VisitanteProjeto.js";
 
 export default class Avaliacao {
   constructor(
-    public readonly id: string,
-    public nota: number,
-    public data: Date,
-    public profissionalId: string,
+    public id: string = "",
+    public nota: number = 0,
+    public data: Date = new Date(),
+    public profissionalId: string = "",
     public avaliadorId?: string,
     public comentario?: string,
   ) {

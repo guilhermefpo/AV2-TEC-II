@@ -1,6 +1,6 @@
+import { Papel } from "../enum/Papel.js";
 import type { ElementoProjeto } from "../interface/ElementoProjeto.js";
 import type VisitanteProjeto from "../interface/VisitanteProjeto.js";
-import { Papel } from "../enum/Papel.js";
 import type Profissional from "./Profissional.js";
 
 export default class MembroEquipe implements ElementoProjeto {

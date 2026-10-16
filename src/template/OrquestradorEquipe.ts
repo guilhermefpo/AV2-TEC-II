@@ -3,9 +3,15 @@ import type Profissional from "../entities/Profissional.js";
 import Recomendacao from "../entities/Recomendacao.js";
 import type RecomendacaoStrategy from "../strategy/RecomendacaoStrategy.js";
 import type { Papel } from "../enum/Papel.js";
+import type FabricaProjeto from "../factory/FabricaProjeto.js";
 
 export default abstract class OrquestradorEquipe {
-  constructor(protected estrategia: RecomendacaoStrategy) {}
+  constructor(
+    protected estrategia: RecomendacaoStrategy,
+    protected fabrica?: FabricaProjeto,
+  ) {}
+
+  public obterEstrategia(): RecomendacaoStrategy { return this.estrategia; }
 
   public processarRecomendacao(
     projeto: Projeto,
@@ -17,7 +23,7 @@ export default abstract class OrquestradorEquipe {
     const recomendacoesPorPapel: Recomendacao[] = [];
 
     for (const papelObrigatorio of projetoNormalizado.papeisObrigatorios) {
-      const recomendacao = this.estrategia.recomendar(
+      const recomendacao = (this.fabrica?.criarRecomendador() ?? this.estrategia).recomendar(
         projetoNormalizado,
         papelObrigatorio.papel,
         profissionaisDisponiveis,
@@ -36,7 +42,7 @@ export default abstract class OrquestradorEquipe {
     const projetoNormalizado = this.normalizarEntrada(projeto);
     this.validarRestricoesOrcamentarias(projetoNormalizado);
 
-    const recomendacao = this.estrategia.recomendar(
+    const recomendacao = (this.fabrica?.criarRecomendador() ?? this.estrategia).recomendar(
       projetoNormalizado,
       papel,
       profissionaisDisponiveis,

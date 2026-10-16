@@ -20,6 +20,7 @@ const conviteResponseSchema = z.object({
   papel: z.nativeEnum(Papel),
   status: z.enum(["pendente", "aceito", "recusado"]),
 });
+const erroResponseSchema = z.object({ message: z.string() });
 
 export default async function conviteRoutes(
   app: FastifyInstance<any, any, any, any, ZodTypeProvider>,
@@ -30,18 +31,20 @@ export default async function conviteRoutes(
       schema: {
         params: z.object({ projetoId: z.string() }),
         body: criarConviteSchema,
-        response: { 201: conviteResponseSchema },
+        response: { 201: conviteResponseSchema, 404: erroResponseSchema },
       },
     },
     async (request, reply) => {
       const { projetoId } = request.params;
       const { profissionalId, papel } = request.body;
 
-      const convite = await conviteService.criarConvite(
-        projetoId,
-        profissionalId,
-        papel,
-      );
+      let convite;
+      try {
+        convite = await conviteService.criarConvite(projetoId, profissionalId, papel);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Recurso não encontrado.";
+        return reply.status(404).send({ message });
+      }
 
       return reply.status(201).send(convite);
     },
@@ -53,17 +56,20 @@ export default async function conviteRoutes(
       schema: {
         params: z.object({ conviteId: z.string() }),
         body: responderConviteSchema,
-        response: { 200: conviteResponseSchema },
+        response: { 200: conviteResponseSchema, 404: erroResponseSchema },
       },
     },
     async (request, reply) => {
       const { conviteId } = request.params;
       const { resposta } = request.body;
 
-      const convite = await conviteService.responderConvite(
-        conviteId,
-        resposta === "aceito",
-      );
+      let convite;
+      try {
+        convite = await conviteService.responderConvite(conviteId, resposta === "aceito");
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Convite não encontrado.";
+        return reply.status(404).send({ message });
+      }
 
       return reply.send(convite);
     },

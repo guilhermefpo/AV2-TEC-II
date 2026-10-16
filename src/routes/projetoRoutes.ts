@@ -8,6 +8,8 @@ import {
   orquestradores,
 } from "../Container.js";
 import { Papel } from "../enum/Papel.js";
+import { FabricaAnimacao, FabricaDocumentario, FabricaPublicitario } from "../factory/FabricasConcretas.js";
+import OrquestradorPadrao from "../template/OrquestradorPadrao.js";
 
 const papelObrigatorioSchema = z.object({
   papel: z.nativeEnum(Papel),
@@ -58,7 +60,12 @@ export default async function projetoRoutes(
     async (request, reply) => {
       const dados = request.body;
 
-      const projeto = new Projeto(
+      const fabrica = dados.genero.toLowerCase().includes("anim")
+        ? new FabricaAnimacao()
+        : dados.genero.toLowerCase().includes("public")
+          ? new FabricaPublicitario()
+          : new FabricaDocumentario();
+      const projeto = fabrica.criarProjeto([
         dados.id,
         dados.genero,
         dados.duracao,
@@ -67,13 +74,16 @@ export default async function projetoRoutes(
         dados.tipoCaptacao,
         dados.localizacao,
         dados.papeisObrigatorios,
+      ] as ConstructorParameters<typeof Projeto>);
+      const orquestradorPorTipo = new OrquestradorPadrao(
+        orquestradores[dados.estrategia].obterEstrategia(),
       );
 
       await projetoRepository.salvar(projeto);
 
       const recomendacoes = await recomendacaoService.gerarRecomendacoes(
         projeto,
-        orquestradores[dados.estrategia],
+        orquestradorPorTipo,
       );
 
       return reply.send(

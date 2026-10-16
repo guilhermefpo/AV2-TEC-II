@@ -27,7 +27,12 @@ describe("ValidadorConsistencia", () => {
   });
 
   it("é válido quando todos os papéis estão preenchidos dentro do orçamento", () => {
-    const profissional = new Profissional("prof1", "Ana", [], [], 1000, true);
+    const profissional = Profissional.criar({
+      id: "prof1",
+      nome: "Ana",
+      precoMedio: 1000,
+      disponivel: true,
+    });
     const equipe = new Equipe("e1", "p1", [
       new MembroEquipe(Papel.DIRETOR, profissional, true),
     ]);

@@ -2,7 +2,11 @@
 
 API para recomendar e formar equipes audiovisuais. Node.js, TypeScript estrito, Fastify, PostgreSQL e TypeORM. Não há interface gráfica; a documentação interativa da API fica em `/docs`.
 
-Atividade prática (ATVI) — Engenharia de Software. Professor: Dr. Eng. Gerson Penha.
+Atividades práticas (ATVI e ATVII) — Engenharia de Software. Professor: Dr. Eng. Gerson Penha.
+
+O projeto implementa o microsserviço de recomendação e orquestração de equipes da
+plataforma CineBridge. A AV1 utiliza Strategy, Template Method, Observer e Visitor.
+A AV2 acrescenta Prototype, Factory Method e Abstract Factory, mantendo o fluxo original.
 
 ## Executar
 
@@ -117,6 +121,7 @@ src/
   database/       DataSource do TypeORM
   tests/          testes unitários e de integração
   utils/          gerador de ids sequenciais
+  factory/        fábricas de projetos e sistema de recomendação
   container.ts    composition root (injeção de dependência)
   ---
   raiz:
@@ -130,8 +135,16 @@ src/
 | Template Method | `OrquestradorEquipe` (abstrato) e `OrquestradorPadrao`                                | Normalizar → validar orçamento → recomendar por papel → pós-processar; o método principal não é sobrescrito       |
 | Observer        | `EmissorRecomendacao`, `NotificacaoEmail`, `NotificacaoInterna`, `AuditoriaOperacoes` | Cada observador reage sozinho ao mesmo evento                                                                     |
 | Visitor         | `ValidadorConsistencia`, `CalculadorCompatibilidade`, `GeradorRelatorio`              | Operações diferentes sobre `Projeto → Equipe → MembroEquipe → Profissional → Avaliacao` sem alterar essas classes |
+| Prototype       | `Projeto.clonar()` e subclasses de projeto                                             | Clonagem profunda de projetos e seus papéis/competências |
+| Factory Method  | `FabricaProjetoBase.criarProjeto()`                                                     | Criação de projetos especializados sem duplicar o fluxo da aplicação |
+| Abstract Factory| `FabricaProjeto` e fábricas concretas                                                   | Criação coordenada de projeto, validador, estratégia e notificador |
 
 As dependências são fornecidas por construtor e montadas uma única vez em `container.ts`. O mapa `orquestradores` do container guarda um orquestrador para cada estratégia, e a rota escolhe o orquestrador conforme o campo `estrategia` da requisição.
+
+Na AV2, a rota também seleciona a fábrica conforme o gênero informado: gêneros que
+contêm `anim` usam `FabricaAnimacao`, gêneros que contêm `public` usam
+`FabricaPublicitario` e os demais usam `FabricaDocumentario`. A fachada
+`SistemaRecomendacao` coordena a criação dos objetos da família.
 
 Profissionais, projetos, equipes e convites têm tabela própria no PostgreSQL. Competências, avaliações, papéis obrigatórios e os membros da equipe são gravados como JSON dentro dessas tabelas. Ao carregar uma equipe, o repositório reconstrói cada membro buscando o profissional completo pelo id.
 
@@ -176,3 +189,6 @@ Os logs HTTP estruturados vêm do Pino, já embutido no Fastify.
 - O modelo de profissional tem `precoMedio` e `disponivel`. Faixa de preço, janela de disponibilidade e localização não são modeladas, então a estratégia de baixo orçamento e o filtro de disponibilidade são simples.
 - As credenciais do banco estão no código, para uso local de desenvolvimento.
 - Os testes de integração acumulam registros no banco.
+- A seleção das fábricas por gênero usa uma convenção simples baseada no nome do gênero;
+  novos tipos devem receber uma fábrica e uma regra explícita de seleção.
+- A suíte de testes exige PostgreSQL disponível e as dependências instaladas com `npm install`.

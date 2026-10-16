@@ -65,4 +65,23 @@ export default class Projeto implements ElementoProjeto {
     visitante.visitarProjeto(this);
     this.equipe?.aceitar(visitante);
   }
+
+  public clonar(): Projeto {
+    return new Projeto(
+      this.id,
+      this.genero,
+      this.duracao,
+      this.orcamento,
+      new Date(this.prazo),
+      this.tipoCaptacao,
+      this.localizacao,
+      this.papeisObrigatorios.map((papel) => ({
+        papel: papel.papel,
+        peso: papel.peso,
+        competenciasDesejadas: papel.competenciasDesejadas.map(
+          (competencia) => ({ ...competencia }),
+        ),
+      })),
+    );
+  }
 }
